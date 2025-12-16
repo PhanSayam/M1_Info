@@ -1,0 +1,123 @@
+# ----------------------------------------------------------------------
+# Fichiers Générés par le Système d'Exploitation et l'Environnement
+# ----------------------------------------------------------------------
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+# Windows
+[Tt]humbs.db
+[Dd]esktop.ini
+
+# Linux
+*~
+.#*
+*.swp
+*.swo
+
+# ----------------------------------------------------------------------
+# Fichiers d'Environnement Local/Sensibles
+# ----------------------------------------------------------------------
+
+# Fichiers de variables d'environnement (contient souvent des clés/secrets)
+.env
+.env.*
+!.env.example # Inclure l'exemple si vous en avez un
+
+# Fichiers de configuration spécifiques à l'utilisateur
+config/local.php
+config/settings.json
+
+# ----------------------------------------------------------------------
+# Dépendances et Produits de Construction (Build)
+# ----------------------------------------------------------------------
+
+# Dépendances Node (JavaScript/TypeScript)
+/node_modules
+/dist
+/build
+/out
+
+# Dépendances Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+/venv
+/env
+/pip-wheel-metadata
+
+# Dépendances Ruby
+/vendor/bundle
+.bundle
+/tmp
+
+# Dépendances Java (Maven/Gradle)
+/target/
+.gradle/
+build/
+*.class
+
+# Dépendances PHP (Composer)
+/vendor
+
+# Fichiers journaux (logs)
+*.log
+/logs
+
+# Fichiers de cache
+*.cache
+.cache
+/temp
+/tmp
+
+# ----------------------------------------------------------------------
+# Fichiers d'IDE et d'Éditeur
+# ----------------------------------------------------------------------
+
+# Visual Studio Code (VS Code)
+.vscode/
+# Laissez .vscode/settings.json, .vscode/extensions.json si vous souhaitez les partager
+# Mais vous pouvez ignorer les fichiers locaux :
+!.vscode/settings.json
+!.vscode/extensions.json
+.vscode/*-remote
+.vscode/pids
+
+# JetBrains IDEs (IntelliJ, PyCharm, WebStorm, etc.)
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.netrwhist
+
+# ----------------------------------------------------------------------
+# Tests et Couverture
+# ----------------------------------------------------------------------
+
+/coverage
+.nyc_output
+
+# ----------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------
+
+# Ignorer tout sauf le Dockerfile et les scripts nécessaires
+.dockerignore
+!Dockerfile
+!docker-compose.yml
+
+.npy
