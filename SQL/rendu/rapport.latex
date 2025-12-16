@@ -1,0 +1,1156 @@
+\documentclass[a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{hyperref} 
+\usepackage{enumitem} 
+\usepackage{subcaption} 
+\usepackage{amsmath} % Pour \ge, \le, etc.
+
+% Configuration de la mise en page
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+% --- Couleurs et Listing ---
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{keywords}{RGB}{207, 7, 107} 
+\definecolor{comments}{RGB}{0, 153, 0} 
+
+\lstset{
+    language=java,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{comments}\itshape,
+    keywordstyle=\color{keywords}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    numbers=left,
+    numbersep=5pt,
+    tabsize=2,
+    literate={é}{{\'e}}1 {è}{{\`e}}1 {à}{{\`a}}1 {ç}{{\c{c}}}1 {œ}{{\oe}}1 {ù}{{\`u}}1 {É}{{\'E}}1 {È}{{\`E}}1 {À}{{\`A}}1 {Ç}{{\c{C}}}1 {Œ}{{\OE}}1 {Ê}{{\^E}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
+}
+
+% --- Titres ---
+\title{Cahier des charges : Modélisation UML et SQL\\ Projet Covoiturage Simplifié}
+\author{CARTRY Ambre, GESSET Maxime, PHAN Damien}
+\date{Année académique 2025-2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\clearpage
+
+\begin{abstract}
+Le but de ce projet est de modéliser une application de covoiturage simplifiée. Ce document propose de décrire chaque élément nécessaire à cet objectif, de la modélisation conceptuelle à l'implémentation en base de données, en se basant sur une approche par cas d'usage (UC).
+\end{abstract}
+
+\section{Description Fonctionnelle}
+
+Notre application n'a qu'un type d'acteurs, les utilisateurs, lesquels se déclinent en deux sous-catégories : les conducteurs et les passagers.
+
+\subsection{Fonctionnalités Générales}
+\begin{itemize}
+    \item Créer un compte.
+    \item Gérer ses informations personnelles (profil).
+\end{itemize}
+
+\subsection{Fonctionnalités Conducteur}
+\begin{itemize}
+    \item Proposer un trajet.
+    \item Gérer un trajet (le modifier, l'annuler ou le clôturer).
+\end{itemize}
+
+\subsection{Fonctionnalités Passager}
+\begin{itemize}
+    \item Sélectionner et réserver un trajet.
+    \item Laisser un avis ou une note sur un trajet passé.
+    \item Rechercher des trajets selon des critères.
+    \item Annuler une réservation.
+\end{itemize}
+
+\subsection{Contraintes Métier}
+
+\subsubsection{Contraintes Utilisateur Général}
+\begin{itemize}
+    \item \textbf{Règle Anti-Self-Booking :} Un utilisateur ne peut pas réserver un trajet dont il est aussi le conducteur.
+\end{itemize}
+
+\subsubsection{Contraintes Conducteur}
+\begin{itemize}
+    \item Avoir un permis de conduire valide enregistré.
+    \item Avoir un contrôle technique (CT) valide pour son véhicule.
+\end{itemize}
+
+\subsubsection{Contraintes Passager}
+\begin{itemize}
+    \item \textbf{Majorité :} Vérification de l'âge (majorité requise pour l'inscription/réservation simple).
+    \item \textbf{Règle Anti-Double :} Ne pas pouvoir réserver plusieurs fois le même trajet.
+\end{itemize}
+
+\clearpage
+
+\section{Modélisation UML : Cas d'Usage}
+
+\subsection{Diagrammes de Cas d'Usage (PlantUML)}
+
+\subsubsection{Vue Globale}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de Cas d'Usage (Vue globale)]
+@startuml
+title Diagramme de cas d'usage (Vue globale)
+
+left to right direction
+actor "Utilisateur" as U
+actor "Conducteur" as C
+actor "Passager" as P
+
+rectangle "Système Covoiturage" as SYS {
+    usecase "Créer un compte" as UC_Inscription
+    usecase "S'authentifier / Gérer son profil" as UC_Profil
+
+    usecase "Proposer un trajet" as UC_Proposer
+    usecase "Gérer un trajet\n(modifier, annuler, clôturer)" as UC_GererTrajet
+
+    usecase "Rechercher des trajets" as UC_Rechercher
+    usecase "Réserver un trajet" as UC_Reserver
+    usecase "Gerer une réservation" as UC_GererResa
+    usecase "Laisser un avis / une note\n(sur un trajet passé)" as UC_Avis
+}
+
+U -- UC_Inscription
+U -- UC_Profil
+
+C -- UC_Proposer
+C <|-- U
+P <|-- U
+
+UC_Profil .> UC_Inscription : <<include>>\n(l'utilisateur doit exister)
+UC_Avis .> UC_Reserver : <<extend>>\n(réservation passée et réalisée)
+UC_GererTrajet .> UC_Proposer : <<extend>>\n(le trajet existe)
+UC_GererResa .> UC_Reserver : <<extend>>\n(la réservation existe)
+@enduml
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{uc_global.png}
+    \caption{Diagramme de Cas d'Usage : Vue globale}
+    \label{fig:uc_global}
+\end{figure}
+
+
+\subsubsection{Cas d'Usage : Conducteur}
+\begin{lstlisting}[caption=Code PlantUML - Cas d'Usage : Conducteur]
+@startuml
+title Cas d'usage Conducteur
+
+left to right direction
+actor "Conducteur" as C
+
+rectangle "Proposer un trajet" as UC_Proposer {
+    usecase "Définir itinéraire\n(départ, arrivée, étapes)" as UC_Itin
+    usecase "Planifier horaire\n(date/heure départ)" as UC_Horaire
+    usecase "Fixer capacités\n(nb places, bagages)" as UC_Capacite
+    usecase "Définir consignes\n(ex: pas d'animaux...)" as UC_Consignes
+}
+rectangle "Gérer un trajet" as UC_Gerer {
+    usecase "Modifier le trajet" as UC_Modifier
+    usecase "Annuler le trajet" as UC_Annuler
+    usecase "Clôturer le trajet" as UC_Cloturer
+}
+
+usecase "Vérifier permis" as UC_VerifPermis
+usecase "Vérifier contrôle technique" as UC_VerifCT
+
+C -- UC_Proposer
+C -- UC_Gerer
+
+UC_Proposer .> UC_VerifPermis : <<include>>
+UC_Proposer .> UC_VerifCT : <<include>>
+@enduml
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{use_case_conduceur.pdf}
+    \caption{Diagramme de Cas d'Usage : Conducteur}
+    \label{fig:uc_conducteur}
+\end{figure}
+
+
+\subsubsection{Cas d'Usage : Passager}
+\begin{lstlisting}[caption=Code PlantUML - Cas d'Usage : Passager]
+@startuml
+title Cas d'usage Passager
+
+left to right direction
+actor "Passager" as P
+
+rectangle "Rechercher des trajets" as UC_Rechercher {
+    usecase "Filtrer/ordonner\n(date, lieu, nb places…)" as UC_Filtrer
+    usecase "Consulter détails trajet" as UC_Consulter
+}
+
+rectangle "Réserver/Annuler un trajet" as UC_Reserver {
+    usecase "Choisir place(s)" as UC_ChoixPlace
+    usecase "Confirmer réservation" as UC_Confirmer
+    usecase "Annuler une réservation" as UC_Annuler
+}
+usecase "Laisser un avis / une note\n(sur un trajet passé)" as UC_Avis
+usecase "Vérifier identité / âge" as UC_VerifAge
+
+P -- UC_Rechercher
+P -- UC_Reserver
+P -- UC_Avis
+
+UC_Avis .> UC_Reserver : <<include>>\n(réservation passée et réalisée)
+UC_Reserver .> UC_VerifAge : <<include>>
+@enduml
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{use_case_passager.pdf}
+    \caption{Diagramme de Cas d'Usage : Passager}
+    \label{fig:uc_passager}
+\end{figure}
+
+
+\subsubsection{Cas d'Usage : Gestion de compte}
+\begin{lstlisting}[caption=Code PlantUML - Cas d'Usage : Gestion de compte]
+@startuml
+
+left to right direction
+actor "Utilisateur" as U
+
+rectangle "Gestion du compte utilisateur" as SYS {
+    usecase "Créer un compte" as UC_Create
+    usecase "S'authentifier" as UC_Login
+    usecase "Gérer son profil\n(photo, nom, âge…)" as UC_Profil
+    usecase "Gérer documents conducteur\n(permis, CT)" as UC_Doc
+}
+usecase "Vérifier documents" as UC_VerifDoc
+
+U -- SYS
+
+UC_Doc .> UC_VerifDoc : <<include>>
+UC_Profil .> UC_Login : <<include>>\n(l'utilisateur doit être authentifié)
+UC_Doc .> UC_Login : <<include>>\n(l'utilisateur doit être authentifié)
+@enduml
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{use_case_gestion_compte.pdf}
+    \caption{Diagramme de Cas d'Usage : Gestion de compte}
+    \label{fig:uc_gestion_compte}
+\end{figure}
+
+\clearpage
+\section{Spécifications Détaillées des Cas d'Usage}
+
+\subsection{UC1 - Créer un compte}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Permet à un nouvel utilisateur de créer un compte pour accéder aux fonctionnalités.
+    \item \textbf{Acteurs} : Principal : Utilisateur. Secondaire : Service e-mail.
+    \item \textbf{Préconditions} : L’utilisateur n’est pas authentifié. Le système est disponible.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item L’utilisateur ouvre « Créer un compte ».
+        \item Il saisit e-mail, mot de passe, prénom, date de naissance.
+        \item Le système vérifie la validité des champs (format, complexité, âge).
+        \item Le système envoie un code de validation par e-mail.
+        \item L’utilisateur saisit le code.
+        \item Le système confirme la création du compte et connecte l’utilisateur.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Mot de passe faible} $\to$ Le système propose des contraintes, l’utilisateur corrige, revient à l’étape 3.
+        \item \textbf{A2. Compte déjà existant} $\to$ Le système propose « Se connecter » ou « Réinitialiser le mot de passe ».
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. E-mail de validation non reçu / expiré} $\to$ Le système propose « Renvoyer le code ».
+        \item \textbf{E2. Service e-mail indisponible} $\to$ Le système affiche un message d’indisponibilité, invite à réessayer plus tard.
+    \end{itemize}
+    \item \textbf{Post-conditions} : Un compte actif existe pour cet e-mail. L’utilisateur est authentifié.
+\end{itemize}
+
+\hrule
+
+\subsection{UC2 - Proposer un trajet (Conducteur)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Un conducteur publie un nouveau trajet à une date donnée, avec un nombre de places.
+    \item \textbf{Acteurs} : Principal : Conducteur. Secondaire : Service de vérification documents.
+    \item \textbf{Préconditions} : Conducteur authentifié. Permis et contrôle technique valides dans le système.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le conducteur ouvre « Proposer un trajet ».
+        \item Il saisit départ, arrivée, date/heure, prix indicatif, nb de places, consignes.
+        \item Le système vérifie la cohérence (date future, $\text{nb places} \ge 1$).
+        \item Le système vérifie permis et CT valides (Inclusion UC7).
+        \item Le conducteur publie le trajet.
+        \item Le système rend le trajet visible dans la recherche.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Étapes intermédiaires (waypoints)} $\to$ Le conducteur ajoute des étapes ; le système recalculera la visibilité pour ces étapes.
+        \item \textbf{A2. Modification avant publication} $\to$ Le conducteur modifie des champs, puis publie (retour à l’étape 5).
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Permis ou CT manquants/expirés} $\to$ Le système bloque la publication et demande la mise à jour des documents.
+        \item \textbf{E2. Date passée} $\to$ Le système refuse la publication et demande une nouvelle date.
+    \end{itemize}
+    \item \textbf{Post-conditions} : Un trajet publié existe et apparaît dans la recherche. Les places disponibles sont initialisées.
+\end{itemize}
+
+\hrule
+
+\subsection{UC3 - Rechercher et réserver un trajet (Passager)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Un passager trouve un trajet et effectue une réservation pour une ou plusieurs places.
+    \item \textbf{Acteurs} : Principal : Passager. Secondaire : -
+    \item \textbf{Préconditions} : Passager authentifié. Le trajet visé est publié et a des places disponibles.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le passager ouvre « Rechercher ».
+        \item Il renseigne critères (départ, arrivée, date).
+        \item Le système affiche une liste de trajets disponibles.
+        \item Le passager consulte le détail d’un trajet.
+        \item Il choisit le nombre de places ($\le$ places disponibles).
+        \item Il confirme la réservation.
+        \item Le système crée la réservation, décrémente les places, confirme au passager.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Filtrage/tri} $\to$ Le passager applique des filtres (prix, heure, étapes), puis reprend à l’étape 3.
+        \item \textbf{A2. Passager mineur} $\to$ Le système vérifie l’âge ; si mineur, affiche les règles spécifiques, puis peut autoriser/refuser.
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Double réservation (Anti-Double)} $\to$ Le système bloque, propose d’ouvrir « Mes réservations ».
+        \item \textbf{E2. Passager = conducteur (Anti-Self)} $\to$ Le système bloque.
+        \item \textbf{E3. Plus de places} $\to$ Le système refuse et réactualise les disponibilités.
+    \end{itemize}
+    \item \textbf{Post-conditions} : Une réservation active existe pour ce passager et ce trajet. Le compteur de places a été mis à jour.
+\end{itemize}
+
+\hrule
+
+\subsection{UC4 - Annuler une réservation (Passager)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Permet au passager d’annuler une réservation existante, selon les règles.
+    \item \textbf{Acteurs} : Principal : Passager.
+    \item \textbf{Préconditions} : Passager authentifié. Réservation existante et annulable.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le passager ouvre « Mes réservations ».
+        \item Il sélectionne une réservation active.
+        \item Il clique « Annuler ».
+        \item Le système demande confirmation.
+        \item Le passager confirme.
+        \item Le système annule la réservation et ré-incrémente les places du trajet.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Raison d’annulation} $\to$ Le système propose un motif (facultatif), le passager renseigne, puis étape 6.
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Dépassement de l’heure limite} $\to$ Le système refuse l’annulation et explique la règle.
+        \item \textbf{E2. Trajet déjà effectué} $\to$ Le système refuse (statut “passé”).
+        \item \textbf{E3. Incohérence concurrence} $\to$ Le système informe que le trajet n’existe plus ; la réservation passe en “annulée par conducteur”.
+    \end{itemize}
+    \item \textbf{Post-conditions} : La réservation est en statut “annulée (par passager)”. Les places du trajet sont mises à jour si applicable.
+\end{itemize}
+
+\hrule
+
+\subsection{UC5 - Laisser un avis / une note (Passager)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Un passager laisse un avis sur un trajet réalisé.
+    \item \textbf{Acteurs} : Principal : Passager.
+    \item \textbf{Préconditions} : Passager authentifié. Réservation liée au trajet en statut “effectué”.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le passager ouvre « Historique ».
+        \item Il choisit un trajet effectué.
+        \item Il sélectionne « Laisser un avis ».
+        \item Il saisit note et commentaire.
+        \item Il publie.
+        \item Le système enregistre l’avis et l’associe au trajet / conducteur.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Anonymisation} $\to$ Le passager coche « avis anonyme » (si la politique le permet).
+        \item \textbf{A2. Modifier un avis récent} $\to$ Le système autorise la modification dans une fenêtre limitée (ex. 24h).
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Trajet non effectué} $\to$ Le système refuse (preuve par statut).
+        \item \textbf{E2. Avis déjà laissé} $\to$ Le système refuse la duplication, propose de modifier l’avis existant.
+    \end{itemize}
+    \item \textbf{Post-conditions} : Un avis valide est stocké et visible selon les règles.
+\end{itemize}
+
+\hrule
+
+\subsection{UC6 - Gérer un trajet (modifier / clôturer) (Conducteur)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Le conducteur modifie un trajet publié (heure, consignes…) ou le clôture/annule.
+    \item \textbf{Acteurs} : Principal : Conducteur. Secondaire : Passagers (notifications).
+    \item \textbf{Préconditions} : Conducteur authentifié. Trajet existant dont il est propriétaire.
+    \item \textbf{Scénario nominal (modification simple)} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le conducteur ouvre « Mes trajets ».
+        \item Il sélectionne un trajet publié.
+        \item Il modifie un champ autorisé (ex. heure).
+        \item Il enregistre.
+        \item Le système met à jour le trajet et notifie les passagers réservés.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Clôturer le trajet} $\to$ Le conducteur choisit « Clôturer » ; le système passe le statut à “effectué”.
+        \item \textbf{A2. Annuler le trajet} $\to$ Le conducteur choisit « Annuler » ; le système annule le trajet et notifie les passagers.
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Modification interdite} $\to$ Le système refuse et explique la contrainte ($\text{ex. réduction de places < réservées}$).
+        \item \textbf{E2. Tentative de modification après clôture} $\to$ Le système refuse (statut final).
+    \end{itemize}
+    \item \textbf{Post-conditions} : Trajet mis à jour ou statut final appliqué. Notifications envoyées aux passagers concernés.
+\end{itemize}
+
+\hrule
+
+\subsection{UC7 - Gérer les documents conducteur (Permis / Contrôle technique)}
+\begin{itemize}[label={}]
+    \item \textbf{Résumé} : Le conducteur ajoute/actualise ses documents ; le système vérifie la validité.
+    \item \textbf{Acteurs} : Principal : Conducteur. Secondaire : Service de vérification documentaire.
+    \item \textbf{Préconditions} : Conducteur authentifié.
+    \item \textbf{Scénario nominal} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le conducteur ouvre « Mes documents ».
+        \item Il téléverse les justificatifs (permis, CT).
+        \item Le système contrôle le format et la lisibilité.
+        \item Le système enregistre et lance la vérification.
+        \item Le système marque les documents « valides » si vérifiés.
+    \end{enumerate}
+    \item \textbf{Enchaînements alternatifs} :
+    \begin{itemize}
+        \item \textbf{A1. Vérification différée} $\to$ Statut « en cours » ; le conducteur est notifié lors de la validation.
+    \end{itemize}
+    \item \textbf{Exceptions} :
+    \begin{itemize}
+        \item \textbf{E1. Document expiré ou illisible} $\to$ Le système refuse et demande un nouveau fichier.
+        \item \textbf{E2. Vérification échouée} $\to$ Statut « refusé » avec motif.
+    \end{itemize}
+    \item \textbf{Post-conditions} : État documentaire à jour (valide, en cours, refusé).
+\end{itemize}
+
+\clearpage
+
+\section{Diagrammes de Séquence}
+
+\subsection{Séquence : UC1 - Créer un compte}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC1]
+@startuml
+title UC1 - Créer un compte
+
+actor Utilisateur as U
+participant "Système Covoiturage" as SYS
+participant "Service e-mail" as MAIL
+participant Utilisateur as Compte
+
+U -> SYS : Ouvrir "Créer un compte"
+U -> SYS : Saisir e-mail, mot de passe, prénom, date de naissance
+SYS -> SYS : Vérifier validité des champs
+alt Champs invalides
+    SYS -> U : Proposer corrections (ex. mot de passe faible)
+    U -> SYS : Corriger champs
+end
+SYS -> MAIL : Envoyer code de validation
+MAIL -> U : Recevoir code
+U -> SYS : Saisir code
+alt Code invalide / expiré
+    SYS -> U : Proposer "Renvoyer le code"
+    U -> SYS : Renvoyer code
+    SYS -> MAIL : Envoyer nouveau code
+    MAIL -> U : Recevoir code
+    U -> SYS : Saisir code
+end
+SYS -> Compte : Créer compte utilisateur
+SYS -> U : Confirmer création et authentification
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC1_CreerCompte.pdf}
+    \caption{Diagramme de Séquence : Créer un compte}
+    \label{fig:seq_uc1}
+\end{figure}
+
+
+\subsection{Séquence : UC2 - Proposer un trajet}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC2]
+@startuml
+title UC2 - Proposer un trajet
+
+actor Conducteur as C
+participant "Système Covoiturage" as SYS
+participant "Système Documents" as DOC
+participant Trajet as T
+
+C -> SYS : Ouvrir "Proposer un trajet"
+C -> SYS : Saisir départ, arrivée, date/heure, prix, nb places, consignes
+SYS -> SYS : Vérifier cohérence des champs (date future, nb places >= 1)
+alt Champs invalides
+    SYS -> C : Proposer correction
+    C -> SYS : Corriger champs
+end
+SYS -> DOC : Vérifier permis et contrôle technique
+alt Documents invalides
+    DOC -> C : Demander mise à jour
+    stop
+end
+C -> SYS : Publier le trajet
+SYS -> T : Créer objet Trajet
+SYS -> SYS : Initialiser nbPlacesDisponibles
+SYS -> C : Confirmer publication, trajet visible dans recherche
+alt Ajouter étapes intermédiaires
+    C -> SYS : Ajouter étapes
+    SYS -> T : Mettre à jour étapes
+    SYS -> SYS : Recalculer visibilité
+end
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC2_ProposerTrajet.pdf}
+    \caption{Diagramme de Séquence : Proposer un trajet}
+    \label{fig:seq_uc2}
+\end{figure}
+
+
+\subsection{Séquence : UC3 - Rechercher et réserver un trajet}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC3]
+@startuml
+title UC3 - Rechercher et réserver un trajet
+
+actor Passager as P
+participant "Système Covoiturage" as SYS
+participant Trajet as T
+participant Reservation as R
+
+P -> SYS : Ouvrir "Rechercher"
+P -> SYS : Saisir critères (départ, arrivée, date)
+SYS -> T : Rechercher trajets publiés et disponibles
+T --> SYS : Liste des trajets
+SYS -> P : Afficher liste de trajets
+
+P -> SYS : Consulter détail d'un trajet
+SYS -> T : Récupérer détails
+T --> SYS : Détails du trajet
+SYS -> P : Afficher détails
+
+P -> SYS : Choisir nb places
+SYS -> T : Vérifier disponibilité
+alt Plus de places disponibles
+    SYS -> P : Indiquer indisponibilité, mettre à jour liste
+end
+
+P -> SYS : Confirmer réservation
+SYS -> T : Décrémenter nbPlacesDisponibles
+SYS -> R : Créer objet Reservation
+R --> SYS : Confirmation
+SYS -> P : Confirmer réservation
+
+alt Filtrage/tri
+    P -> SYS : Appliquer filtres (prix, heure, étapes)
+    SYS -> T : Rechercher trajets filtrés
+    T --> SYS : Liste filtrée
+    SYS -> P : Afficher liste
+end
+
+alt Passager mineur
+    SYS -> P : Vérifier âge
+    alt Mineur accepté
+        P -> SYS : Confirmer réservation
+        SYS -> R : Créer réservation
+    else Mineur refusé
+        SYS -> P : Interdire réservation
+    end
+end
+
+alt Concurrence ou double réservation
+    SYS -> P : Bloquer réservation, afficher raison
+end
+@endumll
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC3_ReserverTrajet.pdf}
+    \caption{Diagramme de Séquence : Rechercher et réserver un trajet}
+    \label{fig:seq_uc3}
+\end{figure}
+
+
+\subsection{Séquence : UC4 - Annuler une réservation}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC4]
+@startuml
+title UC4 - Annuler une réservation
+
+actor Passager as P
+participant "Système Covoiturage" as SYS
+participant Reservation as R
+participant Trajet as T
+
+P -> SYS : Ouvrir "Mes réservations"
+SYS -> R : Lister réservations actives
+R --> SYS : Retour liste
+SYS -> P : Afficher réservations
+
+P -> SYS : Sélectionner réservation
+P -> SYS : Cliquer "Annuler"
+SYS -> P : Demander confirmation
+P -> SYS : Confirmer annulation
+
+SYS -> R : Mettre statut = "annulée par passager"
+SYS -> T : Incrémenter nbPlacesDisponibles
+R --> SYS : Confirmation
+T --> SYS : Confirmation mise à jour
+SYS -> P : Afficher confirmation
+
+alt Raison d'annulation (facultatif)
+    SYS -> P : Demander motif
+    P -> SYS : Fournir motif
+end
+
+alt Dépassement heure limite ou trajet déjà effectué
+    SYS -> P : Refuser annulation, afficher message
+end
+
+alt Trajet annulé par conducteur (concurrence)
+    SYS -> P : Informer annulation par conducteur
+    R -> SYS : Mettre statut = "annulée par conducteur"
+end
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC4_AnnulerReservation.pdf}
+    \caption{Diagramme de Séquence : Annuler une réservation}
+    \label{fig:seq_uc4}
+\end{figure}
+
+
+\subsection{Séquence : UC5 - Laisser un avis / une note}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC5]
+@startuml
+title UC5 - Laisser un avis / une note
+
+actor Passager as P
+participant "Système Covoiturage" as SYS
+participant Reservation as R
+participant Trajet as T
+participant Avis as A
+
+P -> SYS : Ouvrir "Historique"
+SYS -> R : Lister trajets effectués
+R --> SYS : Retour liste
+SYS -> P : Afficher trajets passés
+
+P -> SYS : Sélectionner trajet
+P -> SYS : Cliquer "Laisser un avis"
+SYS -> P : Afficher formulaire (note, commentaire, anonyme)
+P -> SYS : Saisir note et commentaire
+P -> SYS : Publier
+
+SYS -> R : Vérifier réservation et statut "effectué"
+alt Trajet effectué
+    SYS -> A : Créer nouvel avis
+    A -> T : Associer avis au trajet
+    A --> SYS : Confirmation
+    SYS -> P : Afficher confirmation publication
+else Trajet non effectué ou avis déjà existant
+    SYS -> P : Refuser publication, afficher message
+end
+
+alt Option anonymisation
+    P -> SYS : Cocher "avis anonyme"
+    SYS -> A : Marquer avis comme anonyme
+end
+
+alt Modification avis récent
+    P -> SYS : Modifier avis existant
+    SYS -> A : Mettre à jour avis
+end
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC5_LaisserAvis.pdf}
+    \caption{Diagramme de Séquence : Laisser un avis / une note}
+    \label{fig:seq_uc5}
+\end{figure}
+
+
+\subsection{Séquence : UC6 - Gérer un trajet (modifier / clôturer)}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC6]
+@startuml
+title UC6 - Gérer un trajet (modifier / clôturer)
+
+actor Conducteur as C
+participant "Système Covoiturage" as SYS
+participant Trajet as T
+participant Reservation as R
+participant Passager as P
+
+C -> SYS : Ouvrir "Mes trajets"
+SYS -> T : Lister trajets du conducteur
+T --> SYS : Retour liste
+SYS -> C : Afficher trajets
+
+C -> SYS : Sélectionner trajet publié
+SYS -> T : Vérifier statut et propriétaire
+T --> SYS : Trajet OK
+SYS -> C : Afficher détails
+
+alt Modification simple
+    C -> SYS : Modifier champ autorisé (ex. heure)
+    SYS -> T : Mettre à jour trajet
+    T --> SYS : Confirmation
+    SYS -> R : Lister passagers réservés
+    R --> SYS : Liste passagers
+    SYS -> P : Notifier modification
+    SYS -> C : Confirmation modification
+else Clôturer trajet
+    C -> SYS : Choisir "Clôturer"
+    SYS -> T : Mettre statut = EFFECTUE
+    T --> SYS : Confirmation
+    SYS -> R : Lister passagers réservés
+    R --> SYS : Liste passagers
+    SYS -> P : Notifier clôture
+    SYS -> C : Confirmation clôture
+else Annuler trajet
+    C -> SYS : Choisir "Annuler"
+    SYS -> T : Mettre statut = ANNULE
+    T --> SYS : Confirmation
+    SYS -> R : Annuler réservations
+    R --> SYS : Confirmation
+    SYS -> P : Notifier annulation
+    SYS -> C : Confirmation annulation
+end
+
+alt Exception : modification interdite ou trajet clôturé
+    SYS -> C : Refuser modification, afficher message
+end
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC6_GererTrajet.pdf}
+    \caption{Diagramme de Séquence : Gérer un trajet (modification/clôture)}
+    \label{fig:seq_uc6}
+\end{figure}
+
+
+\subsection{Séquence : UC7 - Gérer les documents conducteur}
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de séquence - UC7]
+@startuml
+title UC7 - Gérer les documents conducteur
+actor Conducteur as C
+participant "Système Covoiturage" as SYS
+participant Document as D
+participant "Service Vérification Externe" as DOC
+
+C -> SYS : Ouvrir "Mes documents"
+SYS -> D : Lister documents existants
+D --> SYS : Retour documents
+SYS -> C : Afficher documents
+
+C -> SYS : Téléverser justificatifs (Permis, CT)
+SYS -> D : Vérifier format et lisibilité
+D --> SYS : Validation OK / Erreur
+
+alt Document valide
+    SYS -> D : Enregistrer document
+    SYS -> DOC : Lancer vérification
+    DOC --> SYS : Statut validé
+    SYS -> C : Confirmation document valide
+else Vérification différée
+    SYS -> D : Marquer statut = EN_COURS
+    SYS -> C : Notification vérification en cours
+else Document expiré ou illisible
+    SYS -> C : Refuser document, demander nouveau fichier
+else Vérification échouée
+    DOC --> SYS : Statut REFUSE
+    SYS -> C : Notification refus document
+end
+@enduml
+\end{lstlisting}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{Sequence_UC7_GererDocuments.png}
+    \caption{Diagramme de Séquence : Gérer les documents conducteur}
+    \label{fig:seq_uc7}
+\end{figure}
+
+\clearpage
+
+\section{Modélisation Conceptuelle : Diagramme de Classes}
+
+\subsection{Code PlantUML du Diagramme de Classes}
+Le diagramme de classes ci-dessous représente les entités principales de l'application (Utilisateurs, Trajets, Réservations, Documents) et leurs relations.
+
+\begin{lstlisting}[caption=Code PlantUML - Diagramme de Classes - Vue Conceptuelle]
+@startuml
+abstract class Utilisateur {
+    +id: UUID
+    +email: String
+    +motDePasseHash: String
+    +prenom: String
+    +nom:String
+    +dateNaissance: Date
+    +creerCompte()
+    +authentifier()
+    +modifierProfil()
+}
+
+class Passager {
+    +rechercherTrajets()
+    +reserverTrajet(nbPlaces: int)
+    +annulerReservation()
+    +laisserAvis(note: int, commentaire: String, anonyme: Boolean)
+}
+
+class Conducteur {
+    +proposerTrajet()
+    +modifierTrajet()
+    +annulerTrajet()
+    +cloturerTrajet()
+    +gererDocuments()
+}
+
+class Trajet {
+    +id: UUID
+    +depart: String
+    +arrivee: String
+    +dateHeure: DateTime
+    +prix: Float
+    +nbPlacesTotal: Int
+    +nbPlacesDisponibles: Int
+    +consignes: String
+    +statut: Enum {PUBLIE, ANNULE, EFFECTUE, CLOTURE}
+    +modifier()
+    +annuler()
+    +cloturer()
+    +decrementerPlace(nb: int)
+    +incrementerPlace(nb: int)
+}
+
+class Etape {
+    +ordre: Int
+    +lieu: String
+}
+
+class Reservation {
+    +id: UUID
+    +nbPlaces: Int
+    +statut: Enum {ACTIVE, ANNULEE_PASSAGER, ANNULEE_CONDUCTEUR, EFFECTUEE}
+    +creer()
+    +annuler()
+}
+
+class Avis {
+    +id: UUID
+    +note: Int
+    +commentaire: String
+    +anonyme: Boolean
+    +datePublication: DateTime
+    +publier()
+    +modifier()
+}
+
+abstract class Document {
+    +id: UUID
+    +fichierUrl: String
+    +dateExpiration: Date
+    +statut: Enum {EN_COURS, VALIDE, REFUSE}
+    +verifier()
+}
+
+class Permis {
+    +numero: String
+    +dateObtention: Date
+}
+
+class ControleTechnique {
+    +numeroImmatriculation: String
+    +dateControle: Date
+}
+
+' Relations d'héritage
+Utilisateur <|-- Passager
+Utilisateur <|-- Conducteur
+Document <|-- Permis
+Document <|-- ControleTechnique
+
+' Associations
+Conducteur "1" *-- "0..*" Trajet : propose >
+Conducteur "1" *-- "0..*" Document : possède >
+
+Passager "1" -- "0..*" Reservation : effectue >
+Passager "1" -- "0..*" Avis : rédige >
+
+Trajet "1" -- "0..*" Avis : reçoit >
+Trajet "1" -- "0..*" Reservation : contient >
+Trajet "1" -- "0..*" Etape : comprend >
+
+Reservation "1" --> "1" Trajet
+
+Avis "1" --> "1" Trajet
+@enduml
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{DiagrammeClasses.pdf}
+    \caption{Diagramme de Classes UML de l'application Covoiturage}
+    \label{fig:diagramme_classes}
+\end{figure}
+
+\clearpage
+\section{Implémentation : Base de Données Relationnelle (BDR)}
+
+\subsection{Dérivation du Modèle Logique de Données (MLD)}
+
+Le schéma relationnel est dérivé du Diagramme de Classes (voir Annexe, Figure \ref{fig:diagramme_classes}), traduisant les classes et leurs associations en tables et clés étrangères.
+
+\subsection{Script de Création des Tables}
+
+\begin{lstlisting}[language=SQL, caption=Script de Création des Tables (DDL)]
+-- =================================================================
+-- TABLES PRINCIPALES
+-- =================================================================
+
+-- 1. UTILISATEUR
+CREATE TABLE UTILISATEUR (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    EMAIL VARCHAR(255) NOT NULL UNIQUE,
+    MOT_DE_PASSE_HASH VARCHAR(255) NOT NULL,
+    PRENOM VARCHAR(100) NOT NULL,
+    NOM VARCHAR(100) NOT NULL,
+    DATE_NAISSANCE DATE NOT NULL
+);
+
+-- 2. PASSAGER
+CREATE TABLE PASSAGER (
+    UTILISATEUR_ID INT PRIMARY KEY,
+    FOREIGN KEY (UTILISATEUR_ID) REFERENCES UTILISATEUR(ID) ON DELETE CASCADE
+);
+
+-- 3. CONDUCTEUR
+CREATE TABLE CONDUCTEUR (
+    UTILISATEUR_ID INT PRIMARY KEY,
+    FOREIGN KEY (UTILISATEUR_ID) REFERENCES UTILISATEUR(ID) ON DELETE CASCADE
+);
+
+-- 4. TRAJET
+CREATE TABLE TRAJET (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    CONDUCTEUR_ID INT NOT NULL,
+    DEPART VARCHAR(255) NOT NULL,
+    ARRIVEE VARCHAR(255) NOT NULL,
+    DATE_HEURE DATETIME NOT NULL,
+    PRIX DECIMAL(10, 2) NOT NULL CHECK (PRIX >= 0),
+    NB_PLACES_TOTAL INT NOT NULL,
+    NB_PLACES_DISPONIBLES INT NOT NULL,
+    CONSIGNES TEXT,
+    STATUT VARCHAR(50) NOT NULL DEFAULT 'PUBLIE'
+        CHECK (STATUT IN ('PUBLIE','ANNULE','EFFECTUE','CLOTURE')),
+    CHECK (NB_PLACES_TOTAL > 0),
+    CHECK (NB_PLACES_DISPONIBLES >= 0 AND NB_PLACES_DISPONIBLES <= NB_PLACES_TOTAL),
+    FOREIGN KEY (CONDUCTEUR_ID) REFERENCES CONDUCTEUR(UTILISATEUR_ID) ON DELETE CASCADE
+);
+
+-- 5. ETAPE 
+CREATE TABLE ETAPE (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    TRAJET_ID INT NOT NULL,
+    ORDRE INT NOT NULL,
+    LIEU VARCHAR(255) NOT NULL,
+    FOREIGN KEY (TRAJET_ID) REFERENCES TRAJET(ID) ON DELETE CASCADE,
+    UNIQUE (TRAJET_ID, ORDRE)
+);
+
+-- 6. RESERVATION
+CREATE TABLE RESERVATION (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    PASSAGER_ID INT NOT NULL,
+    TRAJET_ID INT NOT NULL,
+    NB_PLACES INT NOT NULL CHECK (NB_PLACES > 0),
+    STATUT VARCHAR(50) NOT NULL DEFAULT 'ACTIVE'
+        CHECK (STATUT IN ('ACTIVE','ANNULEE_PASSAGER','ANNULEE_CONDUCTEUR','EFFECTUEE')),
+    UNIQUE (PASSAGER_ID, TRAJET_ID),
+    FOREIGN KEY (PASSAGER_ID) REFERENCES PASSAGER(UTILISATEUR_ID) ON DELETE CASCADE,
+    FOREIGN KEY (TRAJET_ID) REFERENCES TRAJET(ID) ON DELETE CASCADE
+);
+
+-- 7. AVIS
+CREATE TABLE AVIS (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    PASSAGER_ID INT NOT NULL,
+    TRAJET_ID INT NOT NULL,
+    NOTE INT NOT NULL CHECK (NOTE BETWEEN 1 AND 5),
+    COMMENTAIRE TEXT,
+    ANONYME BOOLEAN NOT NULL,
+    DATE_PUBLICATION DATETIME NOT NULL,
+    UNIQUE (PASSAGER_ID, TRAJET_ID),
+    FOREIGN KEY (PASSAGER_ID) REFERENCES PASSAGER(UTILISATEUR_ID) ON DELETE CASCADE,
+    FOREIGN KEY (TRAJET_ID) REFERENCES TRAJET(ID) ON DELETE CASCADE
+);
+
+-- 8. DOCUMENT 
+CREATE TABLE DOCUMENT (
+    ID INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    CONDUCTEUR_ID INT NOT NULL,
+    FICHIER_URL VARCHAR(255) NOT NULL,
+    DATE_EXPIRATION DATE,
+    STATUT VARCHAR(50) NOT NULL DEFAULT 'EN_COURS' CHECK (STATUT IN ('EN_COURS','VALIDE','REFUSE')),
+    TYPE VARCHAR(50) NOT NULL CHECK (TYPE IN ('PERMIS','CONTROLE_TECHNIQUE')),
+    FOREIGN KEY (CONDUCTEUR_ID) REFERENCES CONDUCTEUR(UTILISATEUR_ID) ON DELETE CASCADE
+);
+
+-- 9. PERMIS
+CREATE TABLE PERMIS (
+    DOCUMENT_ID INT PRIMARY KEY,
+    NUMERO VARCHAR(50) NOT NULL,
+    DATE_OBTENTION DATE NOT NULL,
+    FOREIGN KEY (DOCUMENT_ID) REFERENCES DOCUMENT(ID) ON DELETE CASCADE
+);
+
+-- 10. CONTROLE_TECHNIQUE (Héritage)
+CREATE TABLE CONTROLE_TECHNIQUE (
+    DOCUMENT_ID INT PRIMARY KEY,
+    NUMERO_IMMATRICULATION VARCHAR(50) NOT NULL,
+    DATE_CONTROLE DATE NOT NULL,
+    FOREIGN KEY (DOCUMENT_ID) REFERENCES DOCUMENT(ID) ON DELETE CASCADE
+);
+
+-- =================================================================
+-- INDEXES
+-- =================================================================
+
+CREATE INDEX IDX_TRAJET_CONDUCTEUR ON TRAJET(CONDUCTEUR_ID);
+CREATE INDEX IDX_RESERVATION_PASSAGER ON RESERVATION(PASSAGER_ID);
+CREATE INDEX IDX_RESERVATION_TRAJET ON RESERVATION(TRAJET_ID);
+CREATE INDEX IDX_AVIS_PASSAGER ON AVIS(PASSAGER_ID);
+CREATE INDEX IDX_AVIS_TRAJET ON AVIS(TRAJET_ID);
+CREATE INDEX IDX_DOCUMENT_CONDUCTEUR ON DOCUMENT(CONDUCTEUR_ID);
+
+-- =================================================================
+-- TRIGGERS
+-- =================================================================
+
+-- T1 : Anti auto-réservation (UC3 / E2)
+
+CREATE TRIGGER TRG_ANTI_AUTO_RESERVATION
+BEFORE INSERT ON RESERVATION
+FOR EACH ROW
+WHEN EXISTS (
+    SELECT 1 FROM TRAJET 
+    WHERE ID = NEW.TRAJET_ID
+    AND CONDUCTEUR_ID = NEW.PASSAGER_ID
+)
+BEGIN
+    -- Logique spécifique au SGBD pour lever une erreur / bloquer l'insertion
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INTERDIT: Le conducteur ne peut pas être passager de son propre trajet.';
+END;
+
+
+-- T2 : Verrouillage trajet clos (UC6 / E2)
+-- Empêche la modification des détails du trajet si le statut est final.
+
+CREATE TRIGGER TRG_VERROUILLAGE_TRAJET_CLOS
+BEFORE UPDATE ON TRAJET
+FOR EACH ROW
+WHEN OLD.STATUT IN ('EFFECTUE', 'ANNULE', 'CLOTURE')
+BEGIN
+    -- Logique spécifique au SGBD pour lever une erreur / bloquer la mise à jour
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'INTERDIT: Impossible de modifier les détails d''un trajet clos.';
+END;
+
+
+-- T3 : Mettre à jour les places disponibles après une réservation (UC3)
+-- (Souvent géré par la couche applicative, mais important pour la cohérence BD)
+
+CREATE TRIGGER TRG_UPDATE_PLACES_APRES_RESA
+AFTER INSERT ON RESERVATION
+FOR EACH ROW
+BEGIN
+    UPDATE TRAJET
+    SET NB_PLACES_DISPONIBLES = NB_PLACES_DISPONIBLES - NEW.NB_PLACES
+    WHERE ID = NEW.TRAJET_ID;
+END;
+\end{lstlisting}
+
+\clearpage
+\section{Gestion de la Concurrence et des Transactions}
+
+La gestion de la concurrence est cruciale pour assurer l'intégrité des données, notamment sur les ressources limitées comme le nombre de places disponibles sur un trajet. Les exemples ci-dessous illustrent deux problèmes classiques de concurrence et comment la base de données y répond.
+
+\subsection{Scénario 1 : La Double Réservation}
+\begin{itemize}[label={}]
+    \item \textbf{Problème} : Deux passagers (P1 et P2) tentent de réserver simultanément la dernière place disponible sur un Trajet T. Sans mécanisme de verrouillage, les deux transactions peuvent lire la même valeur de stock ($\text{NB\_PLACES\_DISPONIBLES} = 1$), aboutissant à la création de deux réservations actives alors qu'une seule place était disponible.
+    \item \textbf{Conséquence sans protection} : Violation de la contrainte physique du nombre de places.
+    \item \textbf{Résolution (voir UC3)} :
+    \begin{enumerate}[label=\arabic*.]
+        \item La vérification explicite dans la requête $\text{UPDATE}$ du stock (`WHERE id = ? AND nb\_places\_disponibles >= ? `) assure que la mise à jour n'a lieu que si la place est encore disponible, gérant le cas de concurrence au moment de l'écriture.
+        \item L'unicité de la réservation est renforcée par la contrainte $\text{UNIQUE (PASSAGER\_ID, TRAJET\_ID)}$ dans la table $\text{RESERVATION}$, empêchant formellement un même passager de réserver plusieurs fois le même trajet.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Scénario 2 : L'Anti-Auto-Réservation}
+\begin{itemize}[label={}]
+    \item \textbf{Problème} : Le conducteur (C) du Trajet T, qui n'est pas censé réserver son propre trajet, tente d'insérer une réservation sur ce même trajet.
+    \item \textbf{Conséquence sans Trigger/Contrainte} : L'insertion violerait la règle métier Anti-Self-Booking, faussant la disponibilité des places et la propriété des réservations.
+    \item \textbf{Résolution (Trigger SQL)} :
+    \begin{enumerate}[label=\arabic*.]
+        \item Le $\text{TRIGGER}$ $\text{TRG\_ANTI\_AUTO\_RESERVATION}$ est déclenché $\text{BEFORE INSERT}$ sur la table $\text{RESERVATION}$.
+        \item Il vérifie si l'$\text{ID}$ du passager est identique à l'$\text{ID}$ du conducteur pour le trajet concerné.
+        \item Si la condition est remplie, l'opération est bloquée, maintenant l'intégrité métier avant même que les données ne soient écrites sur le disque.
+    \end{enumerate}
+\end{itemize}
+
+\clearpage
+
+\appendix
+\section*{Annexe : Schémas UML}
+
+Les schémas suivants sont générés à partir des codes PlantUML présentés dans les sections précédentes.
+
+\begin{itemize}
+    \item Diagramme de Cas d'Usage (Vue globale) : Figure \ref{fig:uc_global}
+    \item Diagramme de Cas d'Usage (Conducteur) : Figure \ref{fig:uc_conducteur}
+    \item Diagramme de Cas d'Usage (Passager) : Figure \ref{fig:uc_passager}
+    \item Diagramme de Cas d'Usage (Gestion de compte) : Figure \ref{fig:uc_gestion_compte}
+    \item Diagramme de Séquence : UC1 - Créer un compte : Figure \ref{fig:seq_uc1}
+    \item Diagramme de Séquence : UC2 - Proposer un trajet : Figure \ref{fig:seq_uc2}
+    \item Diagramme de Séquence : UC3 - Rechercher et réserver un trajet : Figure \ref{fig:seq_uc3}
+    \item Diagramme de Séquence : UC4 - Annuler une réservation : Figure \ref{fig:seq_uc4}
+    \item Diagramme de Séquence : UC5 - Laisser un avis / une note : Figure \ref{fig:seq_uc5}
+    \item Diagramme de Séquence : UC6 - Gérer un trajet : Figure \ref{fig:seq_uc6}
+    \item Diagramme de Séquence : UC7 - Gérer les documents conducteur : Figure \ref{fig:seq_uc7}
+    \item Diagramme de Classes UML : Figure \ref{fig:diagramme_classes}
+\end{itemize}
+
+\end{document}

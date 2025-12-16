@@ -1,0 +1,812 @@
+@startuml UC1_Créer_un_compte
+title UC1 - Créer un compte (Scénario nominal)
+
+actor "Utilisateur" as User
+boundary "Interface\nInscription" as UI
+control "GestionnaireCompte" as GC
+entity "Utilisateur" as UserEntity
+control "ServiceEmail" as Email
+database "BD" as DB
+
+User -> UI : ouvrir "Créer un compte"
+activate UI
+
+UI -> User : afficher formulaire
+User -> UI : saisir (email, mdp, prénom, date_naissance)
+
+UI -> GC : créerCompte(données)
+activate GC
+
+GC -> GC : validerChamps()
+note right: Vérification format email,\nforce du mot de passe,\ndate de naissance
+
+GC -> DB : vérifierEmailExiste(email)
+activate DB
+DB --> GC : false
+deactivate DB
+
+GC -> UserEntity ** : new Utilisateur()
+activate UserEntity
+
+GC -> DB : enregistrerUtilisateur(user)
+activate DB
+DB --> GC : OK
+deactivate DB
+
+GC -> Email : envoyerCodeValidation(email)
+activate Email
+Email --> GC : code envoyé
+deactivate Email
+
+GC --> UI : code envoyé, demander validation
+deactivate GC
+
+UI -> User : afficher "saisir code"
+User -> UI : saisir code
+
+UI -> GC : validerCode(email, code)
+activate GC
+
+GC -> DB : vérifierCode(email, code)
+activate DB
+DB --> GC : code valide
+deactivate DB
+
+GC -> UserEntity : activerCompte()
+UserEntity --> GC : compte activé
+
+GC -> DB : mettreAJourStatut(email, ACTIF)
+activate DB
+DB --> GC : OK
+deactivate DB
+
+GC --> UI : compte créé et connecté
+deactivate GC
+deactivate UserEntity
+
+UI -> User : afficher tableau de bord
+deactivate UI
+
+@enduml
+
+@startuml UC1_Alternative_Email_Existe
+title UC1 - Créer un compte (Alternative A2 : Email déjà existant)
+
+actor "Utilisateur" as User
+boundary "Interface\nInscription" as UI
+control "GestionnaireCompte" as GC
+database "BD" as DB
+
+User -> UI : saisir (email, mdp, prénom, date_naissance)
+UI -> GC : créerCompte(données)
+activate GC
+
+GC -> GC : validerChamps()
+
+GC -> DB : vérifierEmailExiste(email)
+activate DB
+DB --> GC : true
+deactivate DB
+
+GC --> UI : erreur "Email déjà utilisé"
+deactivate GC
+
+UI -> User : proposer "Se connecter" ou\n"Réinitialiser mot de passe"
+
+alt Utilisateur choisit "Se connecter"
+    User -> UI : cliquer "Se connecter"
+    UI -> User : rediriger vers authentification
+else Utilisateur choisit "Réinitialiser"
+    User -> UI : cliquer "Réinitialiser"
+    UI -> User : lancer processus réinitialisation
+end
+
+@enduml
+
+@startuml UC2_Proposer_trajet
+title UC2 - Proposer un trajet (Scénario nominal)
+
+actor "Conducteur" as Cond
+boundary "Interface\nTrajet" as UI
+control "GestionnaireTrajet" as GT
+control "VerificateurDocuments" as VD
+entity "Trajet" as TrajetEntity
+entity "Document" as Doc
+database "BD" as DB
+
+Cond -> UI : ouvrir "Proposer un trajet"
+activate UI
+
+UI -> Cond : afficher formulaire
+Cond -> UI : saisir (départ, arrivée, date/heure,\nprix, nb_places, consignes)
+
+UI -> GT : proposerTrajet(conducteurId, données)
+activate GT
+
+GT -> GT : validerCohérence()
+note right: Date future,\nnb_places >= 1,\nlieux valides
+
+GT -> VD : vérifierDocumentsConducteur(conducteurId)
+activate VD
+
+VD -> DB : chargerDocuments(conducteurId)
+activate DB
+DB --> VD : liste documents
+deactivate DB
+
+VD -> Doc : permis.estValide()
+activate Doc
+Doc --> VD : true
+deactivate Doc
+
+VD -> Doc : controle_technique.estValide()
+activate Doc
+Doc --> VD : true
+deactivate Doc
+
+VD --> GT : documents valides
+deactivate VD
+
+GT -> TrajetEntity ** : new Trajet(données)
+activate TrajetEntity
+
+GT -> TrajetEntity : publier()
+TrajetEntity -> TrajetEntity : setStatut(PUBLIE)
+
+GT -> DB : enregistrerTrajet(trajet)
+activate DB
+DB --> GT : trajet_id
+deactivate DB
+
+GT --> UI : trajet publié (trajet_id)
+deactivate GT
+deactivate TrajetEntity
+
+UI -> Cond : confirmation "Trajet publié"
+deactivate UI
+
+@enduml
+
+@startuml UC2_Exception_Documents_Invalides
+title UC2 - Proposer un trajet (Exception E1 : Documents invalides)
+
+actor "Conducteur" as Cond
+boundary "Interface\nTrajet" as UI
+control "GestionnaireTrajet" as GT
+control "VerificateurDocuments" as VD
+entity "Document" as Doc
+database "BD" as DB
+
+Cond -> UI : saisir données trajet
+UI -> GT : proposerTrajet(conducteurId, données)
+activate GT
+
+GT -> GT : validerCohérence()
+
+GT -> VD : vérifierDocumentsConducteur(conducteurId)
+activate VD
+
+VD -> DB : chargerDocuments(conducteurId)
+activate DB
+DB --> VD : liste documents
+deactivate DB
+
+alt Permis expiré ou manquant
+    VD -> Doc : permis.estValide()
+    activate Doc
+    Doc --> VD : false
+    deactivate Doc
+    VD --> GT : erreur "Permis invalide"
+else Contrôle technique expiré
+    VD -> Doc : controle_technique.estValide()
+    activate Doc
+    Doc --> VD : false
+    deactivate Doc
+    VD --> GT : erreur "CT invalide"
+end
+
+deactivate VD
+
+GT --> UI : blocage publication +\nmessage erreur
+deactivate GT
+
+UI -> Cond : "Veuillez mettre à jour\nvos documents"
+UI -> Cond : rediriger vers "Mes documents"
+
+@enduml
+
+@startuml UC3_Rechercher_Reserver
+title UC3 - Rechercher et réserver un trajet (Scénario nominal)
+
+actor "Passager" as Pass
+boundary "Interface\nRecherche" as UIR
+boundary "Interface\nRéservation" as UIRes
+control "GestionnaireRecherche" as GR
+control "GestionnaireReservation" as GRes
+entity "Trajet" as TrajetEntity
+entity "Reservation" as ResEntity
+database "BD" as DB
+
+Pass -> UIR : ouvrir "Rechercher"
+activate UIR
+
+UIR -> Pass : afficher formulaire
+Pass -> UIR : saisir critères (départ, arrivée, date)
+
+UIR -> GR : rechercherTrajets(critères)
+activate GR
+
+GR -> DB : trouverTrajetsDisponibles(critères)
+activate DB
+DB --> GR : liste trajets
+deactivate DB
+
+GR --> UIR : liste trajets
+deactivate GR
+
+UIR -> Pass : afficher résultats
+Pass -> UIR : consulter détail trajet_X
+
+UIR -> GR : getDetailTrajet(trajet_id)
+activate GR
+GR -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GR : trajet
+deactivate DB
+GR --> UIR : détails complets
+deactivate GR
+
+UIR -> Pass : afficher détails
+deactivate UIR
+
+Pass -> UIRes : choisir nb_places + confirmer
+activate UIRes
+
+UIRes -> GRes : réserverTrajet(passager_id, trajet_id, nb_places)
+activate GRes
+
+GRes -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GRes : trajet
+deactivate DB
+
+GRes -> TrajetEntity : verifierDisponibilite(nb_places)
+activate TrajetEntity
+TrajetEntity --> GRes : true
+deactivate TrajetEntity
+
+GRes -> GRes : vérifierAntiDouble(passager_id, trajet_id)
+note right: Règle métier:\nPas de double réservation
+
+GRes -> GRes : vérifierAntiSelf(passager_id, conducteur_id)
+note right: Règle métier:\nPassager ≠ Conducteur
+
+GRes -> ResEntity ** : new Reservation(passager, trajet, nb_places)
+activate ResEntity
+
+GRes -> ResEntity : confirmer()
+ResEntity -> ResEntity : setStatut(CONFIRMEE)
+
+GRes -> TrajetEntity : decrementerPlace(nb_places)
+activate TrajetEntity
+TrajetEntity -> TrajetEntity : nbPlacesDisponibles -= nb_places
+deactivate TrajetEntity
+
+GRes -> DB : enregistrerReservation(reservation)
+activate DB
+DB --> GRes : reservation_id
+deactivate DB
+
+GRes -> DB : mettreAJourTrajet(trajet)
+activate DB
+DB --> GRes : OK
+deactivate DB
+
+GRes --> UIRes : réservation confirmée
+deactivate GRes
+deactivate ResEntity
+
+UIRes -> Pass : "Réservation confirmée"
+deactivate UIRes
+
+@enduml
+
+@startuml UC3_Exception_Plus_de_places
+title UC3 - Réserver un trajet (Exception E3 : Plus de places disponibles)
+
+actor "Passager" as Pass
+boundary "Interface\nRéservation" as UI
+control "GestionnaireReservation" as GRes
+entity "Trajet" as TrajetEntity
+database "BD" as DB
+
+Pass -> UI : confirmer réservation (nb_places)
+activate UI
+
+UI -> GRes : réserverTrajet(passager_id, trajet_id, nb_places)
+activate GRes
+
+GRes -> DB : chargerTrajet(trajet_id)
+activate DB
+note right: Lecture avec\nverrouillage (transaction)
+DB --> GRes : trajet
+deactivate DB
+
+GRes -> TrajetEntity : verifierDisponibilite(nb_places)
+activate TrajetEntity
+
+alt Places insuffisantes (concurrence)
+    TrajetEntity --> GRes : false
+    deactivate TrajetEntity
+    
+    GRes --> UI : erreur "Plus assez de places"
+    deactivate GRes
+    
+    UI -> Pass : "Désolé, ce trajet n'a plus\nassez de places disponibles"
+    
+    UI -> GRes : rechercherTrajetsAlternatifs(critères)
+    activate GRes
+    GRes -> DB : trouverTrajetsDisponibles(critères)
+    activate DB
+    DB --> GRes : liste mise à jour
+    deactivate DB
+    GRes --> UI : trajets disponibles
+    deactivate GRes
+    
+    UI -> Pass : afficher alternatives
+end
+
+deactivate UI
+
+@enduml
+
+@startuml UC4_Annuler_Reservation
+title UC4 - Annuler une réservation (Scénario nominal)
+
+actor "Passager" as Pass
+boundary "Interface\nRéservation" as UI
+control "GestionnaireReservation" as GRes
+entity "Reservation" as ResEntity
+entity "Trajet" as TrajetEntity
+database "BD" as DB
+
+Pass -> UI : ouvrir "Mes réservations"
+activate UI
+
+UI -> GRes : chargerReservations(passager_id)
+activate GRes
+
+GRes -> DB : getReservationsActives(passager_id)
+activate DB
+DB --> GRes : liste réservations
+deactivate DB
+
+GRes --> UI : réservations
+deactivate GRes
+
+UI -> Pass : afficher liste
+Pass -> UI : sélectionner réservation_X
+Pass -> UI : cliquer "Annuler"
+
+UI -> Pass : demander confirmation +\nmotif (facultatif)
+Pass -> UI : confirmer + saisir motif
+
+UI -> GRes : annulerReservation(reservation_id, motif)
+activate GRes
+
+GRes -> DB : chargerReservation(reservation_id)
+activate DB
+DB --> GRes : reservation
+deactivate DB
+
+GRes -> ResEntity : verifierAnnulable()
+activate ResEntity
+
+ResEntity -> ResEntity : vérifier délai limite
+note right: Ex: 24h avant\nle départ
+
+ResEntity --> GRes : true
+deactivate ResEntity
+
+GRes -> ResEntity : annuler(motif)
+activate ResEntity
+ResEntity -> ResEntity : setStatut(ANNULEE_PAR_PASSAGER)
+ResEntity -> ResEntity : setMotifAnnulation(motif)
+deactivate ResEntity
+
+GRes -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GRes : trajet
+deactivate DB
+
+GRes -> TrajetEntity : incrementerPlace(nb_places)
+activate TrajetEntity
+TrajetEntity -> TrajetEntity : nbPlacesDisponibles += nb_places
+deactivate TrajetEntity
+
+GRes -> DB : mettreAJourReservation(reservation)
+activate DB
+DB --> GRes : OK
+deactivate DB
+
+GRes -> DB : mettreAJourTrajet(trajet)
+activate DB
+DB --> GRes : OK
+deactivate DB
+
+GRes --> UI : annulation confirmée
+deactivate GRes
+
+UI -> Pass : "Réservation annulée"
+deactivate UI
+
+@enduml
+
+@startuml UC4_Exception_Delai_Depasse
+title UC4 - Annuler une réservation (Exception E1 : Délai dépassé)
+
+actor "Passager" as Pass
+boundary "Interface\nRéservation" as UI
+control "GestionnaireReservation" as GRes
+entity "Reservation" as ResEntity
+database "BD" as DB
+
+Pass -> UI : cliquer "Annuler"
+UI -> Pass : demander confirmation
+
+Pass -> UI : confirmer
+
+UI -> GRes : annulerReservation(reservation_id, motif)
+activate GRes
+
+GRes -> DB : chargerReservation(reservation_id)
+activate DB
+DB --> GRes : reservation
+deactivate DB
+
+GRes -> ResEntity : verifierAnnulable()
+activate ResEntity
+
+ResEntity -> ResEntity : vérifier délai limite
+note right: Vérifier:\nmaintenant < (dateTrajet - 24h)
+
+alt Délai dépassé
+    ResEntity --> GRes : false + "Délai dépassé"
+    deactivate ResEntity
+    
+    GRes --> UI : refus + règle explicative
+    deactivate GRes
+    
+    UI -> Pass : "Impossible d'annuler.\nDélai limite dépassé (24h avant le départ)."
+end
+
+@enduml
+
+@startuml UC5_Laisser_Avis
+title UC5 - Laisser un avis (Scénario nominal)
+
+actor "Passager" as Pass
+boundary "Interface\nAvis" as UI
+control "GestionnaireAvis" as GA
+entity "Avis" as AvisEntity
+entity "Reservation" as ResEntity
+entity "Trajet" as TrajetEntity
+database "BD" as DB
+
+Pass -> UI : ouvrir "Historique"
+activate UI
+
+UI -> GA : chargerTrajetsEffectues(passager_id)
+activate GA
+
+GA -> DB : getReservationsEffectuees(passager_id)
+activate DB
+DB --> GA : liste réservations
+deactivate DB
+
+GA --> UI : trajets effectués
+deactivate GA
+
+UI -> Pass : afficher historique
+Pass -> UI : choisir trajet_X
+Pass -> UI : cliquer "Laisser un avis"
+
+UI -> Pass : afficher formulaire avis
+Pass -> UI : saisir (note, commentaire, anonyme?)
+
+UI -> GA : publierAvis(passager_id, trajet_id, note, commentaire, anonyme)
+activate GA
+
+GA -> DB : chargerReservation(passager_id, trajet_id)
+activate DB
+DB --> GA : reservation
+deactivate DB
+
+GA -> ResEntity : getStatut()
+activate ResEntity
+ResEntity --> GA : EFFECTUEE
+deactivate ResEntity
+
+GA -> DB : verifierAvisExiste(passager_id, trajet_id)
+activate DB
+DB --> GA : false
+deactivate DB
+
+GA -> AvisEntity ** : new Avis(passager, trajet, note, commentaire, anonyme)
+activate AvisEntity
+
+GA -> AvisEntity : publier()
+AvisEntity -> AvisEntity : setDatePublication(now())
+
+GA -> DB : enregistrerAvis(avis)
+activate DB
+DB --> GA : avis_id
+deactivate DB
+
+GA -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GA : trajet (avec conducteur)
+deactivate DB
+
+GA -> GA : mettreAJourNoteConducteur(conducteur_id)
+note right: Recalculer moyenne\ndes notes du conducteur
+
+GA -> DB : mettreAJourConducteur(conducteur_id, nouvelle_note)
+activate DB
+DB --> GA : OK
+deactivate DB
+
+GA --> UI : avis publié
+deactivate GA
+deactivate AvisEntity
+
+UI -> Pass : "Avis publié avec succès"
+deactivate UI
+
+@enduml
+
+@startuml UC6_Gerer_Trajet_Modifier
+title UC6 - Gérer un trajet - Modifier (Scénario nominal)
+
+actor "Conducteur" as Cond
+boundary "Interface\nTrajet" as UI
+control "GestionnaireTrajet" as GT
+control "GestionnaireNotification" as GN
+entity "Trajet" as TrajetEntity
+entity "Notification" as NotifEntity
+database "BD" as DB
+
+Cond -> UI : ouvrir "Mes trajets"
+activate UI
+
+UI -> GT : chargerTrajets(conducteur_id)
+activate GT
+
+GT -> DB : getTrajetsPublies(conducteur_id)
+activate DB
+DB --> GT : liste trajets
+deactivate DB
+
+GT --> UI : trajets
+deactivate GT
+
+UI -> Cond : afficher liste
+Cond -> UI : sélectionner trajet_X
+Cond -> UI : modifier heure départ
+
+UI -> Cond : afficher formulaire édition
+Cond -> UI : saisir nouvelle heure
+Cond -> UI : enregistrer
+
+UI -> GT : modifierTrajet(trajet_id, nouvelles_données)
+activate GT
+
+GT -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GT : trajet + réservations
+deactivate DB
+
+GT -> TrajetEntity : validerModification(champs_modifiés)
+activate TrajetEntity
+
+TrajetEntity -> TrajetEntity : vérifierContraintes()
+note right: Ex: heure future,\nnb_places >= réservées
+
+TrajetEntity --> GT : validation OK
+deactivate TrajetEntity
+
+GT -> TrajetEntity : modifier(nouvelles_données)
+activate TrajetEntity
+TrajetEntity -> TrajetEntity : setDateHeureDepart(nouvelle_heure)
+deactivate TrajetEntity
+
+GT -> DB : mettreAJourTrajet(trajet)
+activate DB
+DB --> GT : OK
+deactivate DB
+
+GT -> DB : getPassagersReserves(trajet_id)
+activate DB
+DB --> GT : liste passagers
+deactivate DB
+
+loop pour chaque passager
+    GT -> GN : notifierModification(passager, trajet, champs_modifiés)
+    activate GN
+    
+    GN -> NotifEntity ** : new Notification(passager, MODIFICATION_TRAJET, message)
+    activate NotifEntity
+    
+    GN -> NotifEntity : envoyer()
+    NotifEntity -> NotifEntity : setDateEnvoi(now())
+    
+    GN -> DB : enregistrerNotification(notification)
+    activate DB
+    DB --> GN : OK
+    deactivate DB
+    deactivate NotifEntity
+    
+    GN --> GT : notification envoyée
+    deactivate GN
+end
+
+GT --> UI : trajet modifié + passagers notifiés
+deactivate GT
+
+UI -> Cond : "Trajet mis à jour.\nPassagers notifiés."
+deactivate UI
+
+@enduml
+
+@startuml UC6_Gerer_Trajet_Annuler
+title UC6 - Gérer un trajet - Annuler (Alternative A2)
+
+actor "Conducteur" as Cond
+boundary "Interface\nTrajet" as UI
+control "GestionnaireTrajet" as GT
+control "GestionnaireNotification" as GN
+entity "Trajet" as TrajetEntity
+entity "Reservation" as ResEntity
+database "BD" as DB
+
+Cond -> UI : sélectionner trajet
+Cond -> UI : cliquer "Annuler le trajet"
+
+UI -> Cond : demander confirmation
+Cond -> UI : confirmer annulation
+
+UI -> GT : annulerTrajet(trajet_id)
+activate GT
+
+GT -> DB : chargerTrajet(trajet_id)
+activate DB
+DB --> GT : trajet + réservations
+deactivate DB
+
+GT -> TrajetEntity : annuler()
+activate TrajetEntity
+TrajetEntity -> TrajetEntity : setStatut(ANNULE)
+deactivate TrajetEntity
+
+GT -> DB : mettreAJourTrajet(trajet)
+activate DB
+DB --> GT : OK
+deactivate DB
+
+loop pour chaque réservation
+    GT -> ResEntity : annulerParConducteur()
+    activate ResEntity
+    ResEntity -> ResEntity : setStatut(ANNULEE_PAR_CONDUCTEUR)
+    deactivate ResEntity
+    
+    GT -> DB : mettreAJourReservation(reservation)
+    activate DB
+    DB --> GT : OK
+    deactivate DB
+    
+    GT -> GN : notifierAnnulation(passager, trajet)
+    activate GN
+    GN -> DB : enregistrerNotification(notification)
+    activate DB
+    DB --> GN : OK
+    deactivate DB
+    GN --> GT : envoyée
+    deactivate GN
+end
+
+GT --> UI : trajet annulé + passagers notifiés
+deactivate GT
+
+UI -> Cond : "Trajet annulé.\nTous les passagers ont été informés."
+
+@enduml
+
+@startuml UC7_Gerer_Documents
+title UC7 - Gérer les documents conducteur (Scénario nominal)
+
+actor "Conducteur" as Cond
+boundary "Interface\nDocuments" as UI
+control "GestionnaireDocuments" as GD
+control "VerificateurDocuments" as VD
+entity "Document" as DocEntity
+database "BD" as DB
+
+Cond -> UI : ouvrir "Mes documents"
+activate UI
+
+UI -> GD : chargerDocuments(conducteur_id)
+activate GD
+
+GD -> DB : getDocuments(conducteur_id)
+activate DB
+DB --> GD : liste documents existants
+deactivate DB
+
+GD --> UI : documents + statuts
+deactivate GD
+
+UI -> Cond : afficher statut documents
+Cond -> UI : téléverser nouveau document\n(permis ou CT)
+
+UI -> GD : ajouterDocument(conducteur_id, type, fichier)
+activate GD
+
+GD -> GD : validerFormat(fichier)
+note right: Vérifier format,\ntaille, lisibilité
+
+alt Format valide
+    GD -> DocEntity ** : new Document(type, fichier)
+    activate DocEntity
+    DocEntity -> DocEntity : setStatut(EN_COURS)
+    
+    GD -> DB : enregistrerDocument(document)
+    activate DB
+    DB --> GD : document_id
+    deactivate DB
+    
+    GD -> VD : verifierDocument(document_id)
+    activate VD
+    
+    VD -> VD : analyserDocument()
+    note right: Vérification:\n- Dates d'expiration\n- Authenticité\n- Conformité
+    
+    alt Document valide
+        VD -> DocEntity : setStatut(VALIDE)
+        VD -> DB : mettreAJourDocument(document)
+        activate DB
+        DB --> VD : OK
+        deactivate DB
+        
+        VD --> GD : document validé
+        deactivate VD
+        deactivate DocEntity
+        
+        GD --> UI : validation réussie
+        
+        UI -> Cond : "Document validé"
+        
+    else Document refusé
+        VD -> DocEntity : setStatut(REFUSE)
+        VD -> DB : mettreAJourDocument(document, motif)
+        activate DB
+        DB --> VD : OK
+        deactivate DB
+        
+        VD --> GD : document refusé (motif)
+        deactivate VD
+        deactivate DocEntity
+        
+        GD --> UI : refus + motif
+        
+        UI -> Cond : "Document refusé : [motif].\nVeuillez soumettre un nouveau document."
+    end
+    
+else Format invalide
+    GD --> UI : erreur format
+    deactivate GD
+    UI -> Cond : "Format de fichier non valide.\nFormats acceptés : PDF, JPG, PNG"
+end
+
+deactivate UI
+
+@enduml
