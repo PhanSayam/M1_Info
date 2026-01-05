@@ -121,3 +121,21 @@ build/
 !docker-compose.yml
 
 .npy
+
+# ----------------------------------------------------------------------
+# Dépendances Python et Science des Données
+# ----------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+/venv
+/env
+/pip-wheel-metadata
+
+# Fichiers de données et modèles (NumPy / PyTorch)
+*.npy
+*.npz
+*.pth
+*.pt
+*.ckpt
