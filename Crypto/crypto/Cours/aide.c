@@ -114,6 +114,10 @@ void integer_sqrt(mpz_t rop, const mpz_t n) {
 
 /**
  * COMPILATION : gcc rsa_advanced_tool.c -o rsa_advanced_tool -lgmp
+
+gcc fichier.c -o fichier -lgmp
+
+valgrind fichier
  */
 
 // --- 1. THÉORIE DES GROUPES ET ORDRE ---

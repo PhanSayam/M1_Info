@@ -319,6 +319,161 @@ def attaque_oracle_cca2(c, e, n, oracle_func):
     m = (m_blinded * pow(r, -1, n)) % n
     return m
 
+def crt(a1, n1, a2, n2):
+    u, v, g = euclide_etendu(n1, n2)
+    if g != 1:
+        raise ValueError
+    return (a1 * v * n2 + a2 * u * n1) % (n1 * n2)
+
+def rsa_dechiffrement_crt(c, p, q, d):
+    dp = d % (p - 1)
+    dq = d % (q - 1)
+    mp = pow(c, dp, p)
+    mq = pow(c, dq, q)
+    return crt(mp, p, mq, q)
+
+def hastad_attack(c_list, n_list, e):
+    x = 0
+    N = 1
+    for n in n_list:
+        N *= n
+    for c, n in zip(c_list, n_list):
+        m = N // n
+        inv = inverse_modulaire(m, n)
+        x += c * inv * m
+    x %= N
+    return racine_entiere_e(x, e)
+
+def rsa_vulnerable_fermat(p, q, bound=1_000_000):
+    return abs(p - q) < bound
+
+def generer_cle_rsa(bits=2048, e=65537):
+    while True:
+        p = generer_premier(bits // 2)
+        q = generer_premier(bits // 2)
+        if p == q:
+            continue
+        phi = (p - 1) * (q - 1)
+        if pgcd(e, phi) == 1:
+            d = inverse_modulaire(e, phi)
+            return (e, p*q), (d, p, q)
+
+def is_quadratic_residue_prime(a, p):
+    if p < 2 or p % 2 == 0:
+        raise ValueError
+    return pow(a, (p - 1) // 2, p) == 1
+def sqrt_mod_prime(a, p):
+    if a == 0:
+        return 0
+    if pow(a, (p - 1) // 2, p) != 1:
+        return None
+
+    if p % 4 == 3:
+        return pow(a, (p + 1) // 4, p)
+
+    q = p - 1
+    s = 0
+    while q % 2 == 0:
+        q //= 2
+        s += 1
+
+    z = 2
+    while pow(z, (p - 1) // 2, p) != p - 1:
+        z += 1
+
+    c = pow(z, q, p)
+    x = pow(a, (q + 1) // 2, p)
+    t = pow(a, q, p)
+    m = s
+
+    while t != 1:
+        i = 1
+        temp = pow(t, 2, p)
+        while temp != 1:
+            temp = pow(temp, 2, p)
+            i += 1
+        b = pow(c, 1 << (m - i - 1), p)
+        x = (x * b) % p
+        t = (t * b * b) % p
+        c = (b * b) % p
+        m = i
+    return x
+def roots_mod_prime(a, e, p):
+    res = []
+    for x in range(p):
+        if pow(x, e, p) == a % p:
+            res.append(x)
+    return res
+def eth_root_mod_prime(a, e, p):
+    inv = pow(e, -1, p - 1)
+    return pow(a, inv, p)
+def miller_rabin_det(n):
+    if n < 2:
+        return False
+    small_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23]
+    if n in small_primes:
+        return True
+    for p in small_primes:
+        if n % p == 0:
+            return False
+
+    d = n - 1
+    r = 0
+    while d % 2 == 0:
+        d //= 2
+        r += 1
+
+    for a in [2, 325, 9375, 28178, 450775, 9780504, 1795265022]:
+        if a % n == 0:
+            continue
+        x = pow(a, d, n)
+        if x in (1, n - 1):
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
+def miller_rabin_witness(a, n):
+    d = n - 1
+    r = 0
+    while d % 2 == 0:
+        d //= 2
+        r += 1
+
+    x = pow(a, d, n)
+    if x in (1, n - 1):
+        return False
+    for _ in range(r - 1):
+        x = pow(x, 2, n)
+        if x == n - 1:
+            return False
+    return True
+def is_qr_mod_composite(a, p, q):
+    return (
+        pow(a, (p - 1) // 2, p) == 1 and
+        pow(a, (q - 1) // 2, q) == 1
+    )
+def sqrt_mod_rsa(a, p, q):
+    r1 = sqrt_mod_prime(a, p)
+    r2 = sqrt_mod_prime(a, q)
+    if r1 is None or r2 is None:
+        return []
+
+    def crt(a1, n1, a2, n2):
+        u, v, _ = euclide_etendu(n1, n2)
+        return (a1 * v * n2 + a2 * u * n1) % (n1 * n2)
+
+    roots = []
+    for s1 in [r1, (-r1) % p]:
+        for s2 in [r2, (-r2) % q]:
+            roots.append(crt(s1, p, s2, q))
+    return roots
+def rabin_encrypt(m, n):
+    return pow(m, 2, n)
+
 # =============================================================================
 # 4. RÉSUMÉ DES RELATIONS RSA (COURS)
 # =============================================================================
@@ -334,6 +489,64 @@ RELATIONS FONDAMENTALES :
 - p et q trop proches => Attaque de Fermat (Question 5).
 - Exposant e trop petit => Attaque par racine n-ième.
 - Oracle de déchiffrement disponible => Attaque CCA2 (Question 7).
+
+
+RELATIONS FONDAMENTALES :
+1. n = p · q
+   Modulus public, difficulté de factorisation = hypothèse de sécurité centrale.
+
+2. φ(n) = (p − 1)(q − 1)
+   Ordre du groupe multiplicatif (Z/nZ)* lorsque n est semi-premier.
+
+3. e · d ≡ 1 [mod φ(n)]
+   d est l’inverse modulaire de e dans Z/φ(n)Z.
+   Condition nécessaire et suffisante pour la correction du déchiffrement.
+
+4. Chiffrement :
+   c ≡ m^e [mod n]
+
+5. Déchiffrement :
+   m ≡ c^d [mod n]
+
+6. Correction mathématique :
+   m^{ed} ≡ m [mod p] et [mod q] ⇒ [mod n]
+   Justifié par le théorème d’Euler + CRT.
+
+7. Version CRT (optimisation) :
+   d_p = d mod (p−1), d_q = d mod (q−1)
+   Accélération ≈ ×4 du déchiffrement.
+
+ERREURS DE GÉNÉRATION :
+- p ou q trop petits
+- p ≈ q  → Fermat
+- p−1 ou q−1 lisse → Pollard p−1
+- Réutilisation de p ou q → attaque GCD massive
+
+ERREURS SUR e :
+- e trop petit (e = 3, 5) + message non paddé → attaque par racine
+- Même message, même e, modules différents → attaque de Hastad
+
+ERREURS D’IMPLÉMENTATION :
+- Oracle de déchiffrement → CCA2
+- Temps d’exécution variable → side-channel timing
+- CRT mal protégé → attaque de Bellcore (fault attack)
+
+ERREURS CRYPTOGRAPHIQUES :
+- Absence de padding → RSA déterministe
+- Padding maison → vulnérable (Bleichenbacher)
+
+PADDING STANDARD :
+- OAEP (Optimal Asymmetric Encryption Padding)
+  Rend RSA IND-CPA sûr dans le modèle de l’oracle aléatoire.
+
+SIGNATURE RSA :
+- Signature brute : s = m^d mod n (interdite)
+- Standard : RSA-PSS
+
+HYBRIDATION :
+- RSA ne chiffre pas des gros messages
+- Utilisé pour échanger une clé symétrique (AES)
+
 """
 
 # =============================================================================
