@@ -1,0 +1,40 @@
+Exo Docker
+
+1- Lancez un conteneur basé sur l’image nginx en mode détaché, nommez-le mon_nginx et rendez le service accessible sur le port 8080 de votre machine, puis vérifiez son fonctionnement dans un navigateur et notez la commande utilisée.
+
+docker run -d --name mon_nginx --publish 8080:80 nginx:1.28
+http://localhost:8080/
+
+2- Créez un dossier site_web contenant un fichier index.html avec un message personnalisé, relancez un conteneur nginx en montant ce dossier dans /usr/share/nginx/html afin d’afficher votre page personnalisée, puis notez la commande utilisée.
+
+mkdir site_web
+cd site_web/
+touch index.html
+gedit index.html
+
+docker run -d --name volume_nginx -v $(pwd):/usr/share/nginx/html nginx:1.28
+
+3- Créez un Dockerfile très simple basé sur nginx qui copie votre fichier index.html dans le conteneur, construisez une image nommée mon_site, lancez un conteneur à partir de cette image en le rendant accessible sur le port 8081 et notez les commandes utilisées.
+
+touch Dockerfile
+echo "FROM nginx:1.28
+COPY index.html /usr/share/nginx/html/index.html" > Dockerfile
+docker build -t mon_site .
+docker run -d --name port8081 --publish 8081:80 mon_site
+http://localhost:8081/
+
+4- Connectez-vous à un registre d’images Docker (ex : Docker Hub ou registre fourni), taguez votre image avec le nom approprié du registre, puis poussez (push) l’image vers ce registre et notez les commandes utilisées.
+
+docker login
+docker tag mon_site:latest phandamien/mon_site:latest
+docker push phandamien/mon_site:latest
+
+5- (Bonus) Modifiez votre Dockerfile pour déclarer un argument de build ARG VERSION et l’utiliser pour définir une variable d’environnement ENV VERSION=${VERSION} dans l’image, construisez ensuite l’image en passant une valeur à l’argument de build, lancez un conteneur basé sur cette image et vérifiez que la variable d’environnement est bien définie dans le conteneur.
+
+gedit Dockerfile
+ARG VERSION
+ENV VERSION=${VERSION}
+
+docker build --build-arg VERSION=2 -t mon_site2 .
+docker run -d --name version2 --publish 8082:80 mon_site2
+http://localhost:8082/
