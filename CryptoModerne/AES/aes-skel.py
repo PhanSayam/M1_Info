@@ -180,14 +180,9 @@ def ShiftRows(etat):
 # renvoie dans state le tableau etat 
 # après application de la transformation ShiftRows	
 	state = [etat[0]]
-	for i in range(3):
-		state[i] = [0]*4
 	# A COMPLETER
-	compteur = 0 
-	for i in range(1,3):
-		for j in range(4):
-			state[i][j] = etat[i][j-compteur]
-			compteur += 1
+	for i in range(1,4):
+		state = state + [etat[i][i:]+etat[i][:i]]
 	return state
 
 def MixColumns(etat):
@@ -202,6 +197,15 @@ def MixColumns(etat):
 # et le transparent 7 de aes-exemple.pdf
 	state = []
 	# A COMPLETER
+	for i in range(4):
+		aux = []
+		for j in range(4):
+			somme = 0
+			for k in range(4):
+				somme = somme ^ mult(matrix_mix_columns[i][k],etat[k][j])
+			aux = aux + [somme]
+		state = state + [aux]
+	
 	return state 
 
 def AddRoundKey(etat,tour):
@@ -242,13 +246,10 @@ affiche(etat)
 # Deroulement de l'AES
 etat=AddRoundKey(etat,0)
 for i in range(1,10):
-    affiche(etat)
-    etat = SubBytes(etat)
-    print("SUBBYTE")
-    affiche(etat)
-    etat = ShiftRows(etat)
-    etat = MixColumns(etat)
-    etat = AddRoundKey(etat,i)
+	etat = SubBytes(etat)
+	etat = ShiftRows(etat)
+	etat = MixColumns(etat)
+	etat = AddRoundKey(etat,i)
 etat = SubBytes(etat)
 etat = ShiftRows(etat)
 etat = AddRoundKey(etat,10)
