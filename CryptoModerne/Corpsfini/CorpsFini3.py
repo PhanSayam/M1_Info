@@ -9,7 +9,25 @@ def multbyalpha(x):
 print(multbyalpha([3,4])) #[4,0]
 
 
-def mult(x,y):
-    return 
+def mult(x, y):
+    c0 = (x[0] * y[0] + 3 * x[1] * y[1]) % 5
+    c1 = (x[0] * y[1] + x[1] * y[0] + x[1] * y[1]) % 5
+    return [c0, c1]
 
 print(mult([4, 3],[1, 4])) #[0, 1]
+
+def multbyalpha(x):
+    return [(3 * x[2]) % 7, x[0], (x[1] + x[2]) % 7]
+
+def mult(x, y):
+    c0 = x[0] * y[0]
+    c1 = x[0] * y[1] + x[1] * y[0]
+    c2 = x[0] * y[2] + x[1] * y[1] + x[2] * y[0]
+    c3 = x[1] * y[2] + x[2] * y[1]
+    c4 = x[2] * y[2]
+    
+    r0 = (c0 + 3 * c3 + 3 * c4) % 7
+    r1 = (c1 + 3 * c4) % 7
+    r2 = (c2 + c3 + c4) % 7
+    
+    return [r0, r1, r2]
