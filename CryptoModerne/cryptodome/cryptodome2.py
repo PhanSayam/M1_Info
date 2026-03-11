@@ -27,6 +27,12 @@ password = b'oxxfcdbk'
 
 message_a_envoyer = b"Je pense enfin avoir compris le fonctionnement du protocole PBKDF2, c'est en fait assez simple."
 
+message = "UxLVXPNCy3JPmHNB5+lnIrSJmb0e3Lb3i7K2VbHukSJ2KxNOjLzHvmTsR27xWm6O"
+sel = message[:16]
+IV = message[16:32]
+crypto = message[32:]
+
+
 salt = get_random_bytes(16)
 key = PBKDF2(password, salt, 16, count=100000, hmac_hash_module=SHA3_256)
 

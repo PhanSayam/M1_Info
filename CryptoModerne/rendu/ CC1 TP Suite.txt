@@ -1,0 +1,31 @@
+Chiffrement CBC : 
+    Message est découpé en j blocs
+    etape 1 : 
+        m1 XOR IV
+        chiffrement du bloc obtenu avec une clé K
+        obtention crypto c1
+    etape 2 : 
+        m2 XOR c1 
+        chiffrement du bloc obtenu avec une clé K
+        obtention crypto c2
+    etape j :
+        mj XOR c(j-1) 
+        chiffrement du bloc obtenu avec une clé K
+        obtention crypto cj
+La clé est dérivée a partir du sel donné et d'une fonction de hash de l aes-128(standard). 
+
+Déchiffrement CBC : 
+    A partir du crypto : 
+        sel = crypto[:16]
+        iv = crypto[16:32]
+        cryptogramme = crypto[32:]
+    
+    On peut alors dériver toutes les clées possibles avec le sel et protocole PBKDF2
+    c(j-1) = AES_128⁻1(c(j))
+    
+Si Bob sait que le message envoyé est de la forme : Payer Bob XXXeur
+il peut tester avec avec toutes les combinaisons de XXX. 
+    
+        
+    
+    

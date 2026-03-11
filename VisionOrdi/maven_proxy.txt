@@ -1,0 +1,50 @@
+dans le cadre des travaux pratiques concernant le module de vision par ordinateur, une utilisation de Java / Maven depuis la ligne de commande peut être intéressante pour éviter les problèmes inhérents à l'utilisation d'une Machine Virtuelle (VM). 
+
+Voici des instructions pour activer le proxy UTLN pour Maven: 
+
+1. Créer un fichier settings.xml dans le répertoire .m2 se trouvant à la racine de votre espace utilisateur: 
+touch ~/.m2/settings.xml
+
+2. Editer le fichier settings.xml: 
+gedit ~/.m2/settings.xml 
+
+3. Copier dans le fichier edité le contenu suivant: 
+
+<settings> 
+<proxies> 
+<proxy> 
+<id>http</id> 
+<active>true</active> 
+<protocol>http</protocol> 
+<host>proxy.univ-tln.fr</host> 
+<port>3128</port> 
+<username> user </username> 
+<password> pass </password> 
+<nonProxyHosts>localhost|127.*|[::1]</nonProxyHosts> 
+</proxy> 
+</proxies> 
+</settings> 
+
+4. Remplacer dans le fichier settings.xml la valeur user par votre nom d'utilisateur utln et pass par votre mot de passe en clair (nous traiterons cela plus tars.) 
+
+5. Avec ces modifications, Maven doit maintenant accéder correctement à internet depuis un terminal. 
+
+6. Afin de sécuriser l'installation, nous allons encrypter les mots de passe. Pour celà, créer un fichier settings de sécurité en tapant la commande: 
+touch ~/.m2/settings-security.xml 
+
+7. Editer le fichier ~/.m2/settings-security.xml et y ajouter le contenu suivant: 
+<settingsSecurity> 
+<master> encrypted _master_pass </master> 
+</settingsSecurity> 
+
+8. Il faut maintenant créer un mot de passe maitre encrypté pour la sécurité. Taper la commande suivante en remplaçant master par le mot de passe voulu: 
+mvn --encrypt-master-password ' master ' 
+
+7. Copier la sortie de la commande précédente (avec les accolades) à la place de encrypted _master_pass dans le fichier edité en 7. 
+
+8. Il faut maintenant encrypter votre mot de passe proxy en tapant la commande suivante (et en remplaçant pass par votre mot de passe proxy): 
+mvn --encrypt-password ' pass ' 
+
+9. Copier la sortie de la commande précédente (avec les accolades) à la place de notre mot de passe en clair dans le fichier ~/.m2/settings.xml 
+
+10. Essayer la configuration avec Maven 
