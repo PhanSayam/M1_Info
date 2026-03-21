@@ -85,8 +85,6 @@ static int hash_find(HashTable *ht, const unsigned long val, unsigned long *j_ou
 
     // A COMPLETER
     int onContinue = 0;
-
-    cur = calloc(1,sizeof(Maillon));
     cur = (*ht)[idx];
     
     while ((cur != NULL) && !(onContinue)){  

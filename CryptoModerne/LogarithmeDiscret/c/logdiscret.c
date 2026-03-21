@@ -121,16 +121,6 @@ int main(int argc, char *argv[]) {
     // Rercherche des g^(-mi) dans la table de hachage
     // jusqu'à trouver un g^j tel que g^(-mi)=g^j
     // le log discret recherché vaut alors i*m+j
-    while (i < m) {
-        unsigned long j;
-        if (hash_find(ht, current, &j, table_size)) {  // CORRECTION : ht, &j
-            logd = i * m + j;
-            break;
-        }
-        mpz_mul(current, current, ginvm);
-        mpz_mod(current, current, p);
-        i++;
-    }
 
     printf("Log discret : %lu\n",logd);
     mpz_clear(aux);
